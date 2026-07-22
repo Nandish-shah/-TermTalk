@@ -1,0 +1,1925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAN//CHAT — Console</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg:#0a0c0f; --bg2:#0f1217; --bg3:#141820; --panel:#1a1f2a;
+    --border:#1e2535; --green:#00ff88; --green-dim:#00cc6a; --green-dark:#003d1a;
+    --cyan:#00d4ff; --red:#ff4757; --yellow:#ffd32a;
+    --text:#c8d0e0; --text-dim:#5a6478; --text-muted:#3a4255; --scrollbar:#1e2535;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:radial-gradient(ellipse 1200px 800px at 50% -10%,rgba(0,255,136,.05),transparent 60%),radial-gradient(ellipse 900px 700px at 100% 100%,rgba(0,212,255,.04),transparent 55%),var(--bg);color:var(--text);font-family:'JetBrains Mono','Share Tech Mono',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,136,.012) 2px,rgba(0,255,136,.012) 4px);pointer-events:none;z-index:9999}
+
+  /* topbar */
+  #topbar{background:linear-gradient(180deg,var(--bg3),var(--panel));border-bottom:1px solid var(--border);padding:0 16px;height:44px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:relative;box-shadow:0 1px 20px rgba(0,255,136,.05)}
+  #topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:.4}
+  .logo{font-size:15px;font-weight:700;color:var(--green);letter-spacing:3px;text-shadow:0 0 12px rgba(0,255,136,.5)}
+  .logo span{color:var(--text-dim);font-weight:300}
+  #connection-status{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-dim)}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);transition:all .3s}
+  .status-dot.connected{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 6px var(--green)}50%{box-shadow:0 0 14px var(--green)}}
+
+  /* sidebar toggle (mobile/tablet only) */
+  #sidebar-toggle-btn{display:none;background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;border-radius:4px;cursor:pointer;font-size:16px;align-items:center;justify-content:center;flex-shrink:0;margin-right:10px}
+  #sidebar-toggle-btn:hover{border-color:var(--green);color:var(--green)}
+  #sidebar-backdrop{display:none}
+
+  /* debug panel */
+  #debug-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:11px;padding:4px 8px;border-radius:3px;transition:all .2s}
+  #debug-btn:hover{color:var(--yellow);border:1px solid var(--yellow)}
+
+  /* topbar screen-share button */
+  #debug-panel{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--green)44;border-radius:6px;padding:12px;font-size:10px;color:var(--text-dim);width:280px;max-height:200px;overflow-y:auto;z-index:100;display:none;font-family:monospace}
+  #debug-panel.show{display:block}
+  #debug-panel div{margin:4px 0;line-height:1.4}
+  #debug-panel .label{color:var(--green);font-weight:700}
+  #debug-close{float:right;cursor:pointer;color:var(--text-muted);font-size:12px;padding:0 4px}
+  #debug-close:hover{color:var(--red)}
+
+  /* layout */
+  #main{display:flex;flex:1;overflow:hidden}
+
+  /* sidebar */
+  #sidebar{width:220px;background:linear-gradient(180deg,var(--bg2),var(--bg));border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+  .sidebar-header{padding:12px 14px 8px;font-size:10px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+  .sidebar-header span{color:var(--green)}
+  #user-list{flex:1;overflow-y:auto;padding:8px 0}
+  .user-item{padding:7px 14px;display:flex;align-items:center;gap:9px;font-size:12px;transition:background .15s;cursor:default}
+  .user-item:hover{background:rgba(255,255,255,.03)}
+  .user-avatar{width:26px;height:26px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;box-shadow:0 0 8px -2px currentColor}
+  .user-name{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .user-name.you::after{content:' (you)';color:var(--text-muted);font-size:10px}
+  .user-online-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0}
+  .call-btn{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);width:22px;height:22px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+  .call-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-dark)}
+  .group-select-box{accent-color:var(--green);width:14px;height:14px;cursor:pointer;flex-shrink:0}
+  .group-start-btn:disabled{opacity:.35;cursor:not-allowed}
+
+  /* chat */
+  #chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  #messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:2px;scroll-behavior:smooth}
+  #messages::-webkit-scrollbar{width:4px}
+  #messages::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:2px}
+  .msg-row{display:flex;flex-direction:column;padding:5px 8px;border-radius:3px;transition:background .1s}
+  .msg-row:hover{background:rgba(255,255,255,.02)}
+  .msg-meta{display:flex;align-items:baseline;gap:10px;margin-bottom:3px}
+  .msg-user{font-size:12px;font-weight:700;text-shadow:0 0 8px currentColor}
+  .msg-time{font-size:10px;color:var(--text-muted)}
+  .msg-text{color:var(--text);line-height:1.6;word-break:break-word}
+  .msg-text::before{content:'> ';color:var(--text-muted)}
+  .sys-msg{padding:4px 8px;font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:8px}
+  .sys-msg::before{content:'//';color:var(--text-muted)}
+  .sys-join{color:var(--green-dim)!important}
+  .sys-leave{color:#ff6b6b88!important}
+  .msg-file{margin-top:4px;display:inline-flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg3);border:1px solid var(--border);border-left:3px solid;border-radius:4px;cursor:pointer;text-decoration:none;transition:all .2s;max-width:340px}
+  .msg-file:hover{background:var(--panel);transform:translateY(-1px)}
+  .file-icon{font-size:20px}
+  .file-info{display:flex;flex-direction:column}
+  .file-name{font-size:12px;color:var(--text);font-weight:500}
+  .file-size{font-size:10px;color:var(--text-dim)}
+  .msg-image{margin-top:6px;max-width:320px;border-radius:4px;border:1px solid var(--border);cursor:pointer;transition:transform .2s;display:block}
+  .msg-image:hover{transform:scale(1.02)}
+  #typing-area{min-height:20px;padding:2px 24px;font-size:11px;color:var(--text-muted);font-style:italic}
+
+  /* input bar */
+  #input-bar{background:linear-gradient(0deg,var(--bg3),var(--panel));border-top:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .prompt-prefix{color:var(--green);font-size:14px;font-weight:700;white-space:nowrap;text-shadow:0 0 8px var(--green);flex-shrink:0}
+  #msg-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;font-size:13px;caret-color:var(--green)}
+  #msg-input::placeholder{color:var(--text-muted)}
+  .icon-btn{background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;border-radius:4px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+  .icon-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-dark)}
+  #send-btn{background:var(--green-dark);border:1px solid var(--green);color:var(--green);width:60px;height:32px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:1px;transition:all .15s;flex-shrink:0}
+  #send-btn:hover{background:var(--green);color:var(--bg);box-shadow:0 0 12px rgba(0,255,136,.4)}
+  #send-btn:disabled{opacity:.3;cursor:not-allowed}
+  #file-input{display:none}
+
+  /* lightbox */
+  #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:1000;align-items:center;justify-content:center;cursor:zoom-out}
+  #lightbox.show{display:flex}
+  #lightbox img{max-width:90vw;max-height:90vh;border-radius:4px}
+
+  /* ── VIDEO CALL UI ── */
+  #call-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:800;flex-direction:column;align-items:center;justify-content:center;gap:20px;overflow-y:auto}
+  #call-overlay.show{display:flex}
+
+  .call-header{font-size:11px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase}
+  .call-peer-name{font-size:22px;font-weight:700;color:var(--green);text-shadow:0 0 20px rgba(0,255,136,.5);letter-spacing:2px}
+  .call-status-text{font-size:12px;color:var(--text-muted);letter-spacing:1px}
+
+  #videos{display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .video-wrap{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border);box-shadow:0 0 24px rgba(0,255,136,.06);cursor:pointer}
+  .video-wrap:fullscreen{display:flex;align-items:center;justify-content:center;background:#000}
+  .video-wrap:fullscreen video{width:100%!important;height:100%!important;max-width:none!important;object-fit:contain!important}
+  .video-wrap label{position:absolute;bottom:6px;left:10px;font-size:10px;color:rgba(255,255,255,.7);letter-spacing:1px;background:rgba(0,0,0,.5);padding:2px 6px;border-radius:3px}
+  #remote-video{width:480px;max-width:44vw;height:270px;background:#000;object-fit:cover;display:block}
+  #local-video{width:480px;max-width:44vw;height:270px;background:#111;object-fit:cover;display:block;border-radius:6px}
+
+  /* audio-only mode */
+  #audio-avatar{width:120px;height:120px;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:48px;border:3px solid var(--green);box-shadow:0 0 30px rgba(0,255,136,.3);animation:audioPulse 2s infinite}
+  @keyframes audioPulse{0%,100%{box-shadow:0 0 20px rgba(0,255,136,.3)}50%{box-shadow:0 0 50px rgba(0,255,136,.6)}}
+
+  .call-controls{display:flex;gap:12px;align-items:center}
+  .ctrl-btn{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+  .ctrl-btn.end{background:#ff4757;color:#fff;box-shadow:0 0 20px rgba(255,71,87,.4)}
+  .ctrl-btn.end:hover{background:#ff6b7a;transform:scale(1.05)}
+  .ctrl-btn.mute{background:var(--panel);border:1px solid var(--border);color:var(--text)}
+  .ctrl-btn.mute:hover{border-color:var(--yellow);color:var(--yellow)}
+  .ctrl-btn.mute.active{background:#ffd32a22;border-color:var(--yellow);color:var(--yellow)}
+  .ctrl-btn.cam{background:var(--panel);border:1px solid var(--border);color:var(--text)}
+  .ctrl-btn.cam:hover{border-color:var(--cyan);color:var(--cyan)}
+  .ctrl-btn.cam.active{background:#00d4ff22;border-color:var(--cyan);color:var(--cyan)}
+  .ctrl-btn.share{background:var(--panel);border:1px solid var(--border);color:var(--text)}
+  .ctrl-btn.share:hover{border-color:var(--green);color:var(--green)}
+  .ctrl-btn.share.active{background:var(--green-dark);border-color:var(--green);color:var(--green)}
+
+  /* incoming call popup */
+  #incoming-call{display:none;position:fixed;top:60px;right:20px;background:var(--panel);border:1px solid var(--green);border-radius:8px;padding:20px 24px;z-index:900;min-width:260px;box-shadow:0 0 30px rgba(0,255,136,.2)}
+  #incoming-call.show{display:block}
+  #incoming-group-call{display:none;position:fixed;top:60px;right:20px;background:var(--panel);border:1px solid var(--cyan);border-radius:8px;padding:20px 24px;z-index:900;min-width:260px;box-shadow:0 0 30px rgba(0,212,255,.2)}
+  #incoming-group-call.show{display:block}
+  .inc-title{font-size:10px;color:var(--text-muted);letter-spacing:2px;margin-bottom:6px}
+  .inc-name{font-size:16px;font-weight:700;color:var(--green);margin-bottom:4px}
+  .inc-type{font-size:11px;color:var(--text-dim);margin-bottom:16px}
+  .inc-btns{display:flex;gap:10px}
+  .inc-accept{flex:1;padding:9px;background:var(--green-dark);border:1px solid var(--green);color:var(--green);font-family:inherit;font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;letter-spacing:1px;transition:all .2s}
+  .inc-accept:hover{background:var(--green);color:var(--bg)}
+  .inc-reject{flex:1;padding:9px;background:#ff475722;border:1px solid #ff4757;color:#ff4757;font-family:inherit;font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;letter-spacing:1px;transition:all .2s}
+  .inc-reject:hover{background:#ff4757;color:#fff}
+
+  /* login */
+  #login-screen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center}
+  .login-box{width:440px;background:linear-gradient(160deg,var(--bg3),var(--bg2));border:1px solid var(--border);border-top:2px solid var(--green);padding:32px;box-shadow:0 0 40px rgba(0,255,136,.08),0 20px 60px rgba(0,0,0,.4)}
+  .login-logo{font-size:22px;font-weight:700;color:var(--green);letter-spacing:4px;text-shadow:0 0 16px rgba(0,255,136,.6);margin-bottom:8px}
+  .login-sub{font-size:11px;color:var(--text-muted);letter-spacing:2px;margin-bottom:28px}
+  .field-label{font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+  .login-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:3px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s;caret-color:var(--green)}
+  .login-input:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(0,255,136,.1)}
+  .login-hint{font-size:10px;color:var(--text-muted);margin-top:5px}
+  #connect-btn{margin-top:24px;width:100%;padding:11px;background:var(--green-dark);border:1px solid var(--green);color:var(--green);font-family:inherit;font-size:12px;font-weight:700;letter-spacing:2px;border-radius:3px;cursor:pointer;transition:all .2s}
+  #connect-btn:hover{background:var(--green);color:var(--bg);box-shadow:0 0 20px rgba(0,255,136,.3)}
+  #login-error{margin-top:12px;font-size:11px;color:var(--red);text-align:center;display:none}
+  .login-input.error{border-color:var(--red)}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-thumb{background:var(--scrollbar)}
+
+  /* Theme toggle */
+  #theme-toggle{background:none;border:1px solid var(--border);color:var(--text-dim);font-size:11px;padding:5px 10px;border-radius:4px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;transition:all .15s}
+  #theme-toggle:hover{border-color:var(--green);color:var(--green)}
+
+  /* User search */
+  #user-search{width:100%;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;margin:8px 0;font-family:inherit;font-size:11px;color:var(--text);outline:none}
+  #user-search:focus{border-color:var(--green)}
+  .user-item.hidden{display:none}
+  .user-item.match{background:rgba(0,255,136,.1)}
+
+  /* Emoji picker */
+  #emoji-picker{position:fixed;bottom:110px;left:150px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px;z-index:100;display:none;width:280px;max-height:300px;overflow-y:auto}
+  #emoji-picker.show{display:grid}
+  #emoji-picker{grid-template-columns:repeat(6,1fr);gap:4px}
+  .emoji-btn{background:none;border:1px solid var(--border);width:32px;height:32px;cursor:pointer;border-radius:3px;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .1s}
+  .emoji-btn:hover{background:var(--green-dark);border-color:var(--green)}
+
+  /* Message reactions */
+  .msg-reactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;padding:4px 0}
+  .reaction{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;font-size:13px;cursor:pointer;transition:all .1s}
+  .reaction:hover{background:var(--green-dark);border-color:var(--green)}
+  .reaction-emoji{font-size:14px}
+  .reaction-count{font-size:10px;color:var(--text-muted)}
+  .add-reaction{padding:3px 6px;background:none;border:1px solid var(--border);border-radius:12px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+  .add-reaction:hover{border-color:var(--green);color:var(--green)}
+
+  /* Pinned messages */
+  #pinned-panel{position:fixed;top:50px;right:20px;background:var(--panel);border:1px solid var(--border);border-radius:6px;max-width:300px;max-height:200px;overflow-y:auto;z-index:100;display:none;padding:12px}
+  #pinned-panel.show{display:block}
+  .pinned-msg{padding:8px;background:var(--bg3);border-left:3px solid var(--yellow);margin-bottom:6px;font-size:11px;cursor:pointer;border-radius:3px}
+  .pinned-msg:hover{background:var(--border)}
+  .pinned-header{font-size:10px;color:var(--text-muted);margin-bottom:8px;letter-spacing:1px}
+
+  /* Mentioned highlight */
+  .mentioned{background:rgba(255,211,42,.15);padding:0 3px;border-radius:2px}
+
+  /* @Mention autocomplete */
+  #mention-autocomplete{position:absolute;bottom:100%;left:0;background:var(--panel);border:1px solid var(--border);border-radius:4px;max-height:150px;overflow-y:auto;z-index:10;display:none;min-width:200px}
+  #mention-autocomplete.show{display:block}
+  .mention-item{padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);transition:background .1s}
+  .mention-item:hover{background:var(--green-dark);color:var(--green)}
+  .mention-item:last-child{border-bottom:none}
+
+  /* Mention notifications */
+  .mention-notification{position:fixed;top:70px;right:20px;background:var(--border);border-left:3px solid var(--yellow);border-radius:4px;padding:12px;z-index:50;display:none;max-width:300px;box-shadow:0 0 20px rgba(255,211,42,.3)}
+  .mention-notification.show{display:block;animation:slideIn .3s}
+  @keyframes slideIn{from{transform:translateX(400px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .mention-close{float:right;cursor:pointer;color:var(--text-muted);font-size:12px}
+  .mention-close:hover{color:var(--red)}
+  .mention-header{font-size:11px;color:var(--yellow);font-weight:700;letter-spacing:1px;margin-bottom:4px}
+  .mention-text{font-size:12px;color:var(--text);margin-bottom:4px}
+  .mention-goto{font-size:10px;color:var(--green);cursor:pointer;text-decoration:underline}
+  .mention-goto:hover{color:var(--cyan)}
+
+  /* ── WAITING ROOM UI ── */
+  /* Admit panel — shown to HOST when someone knocks */
+  #admit-panel{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--yellow);border-top:3px solid var(--yellow);border-radius:8px;padding:0;z-index:950;min-width:320px;max-width:400px;box-shadow:0 0 40px rgba(255,211,42,.25);display:none}
+  #admit-panel.show{display:block;animation:slideDown .3s ease}
+  @keyframes slideDown{from{transform:translateX(-50%) translateY(-20px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+  .admit-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:10px;letter-spacing:2px;color:var(--yellow);display:flex;align-items:center;justify-content:space-between}
+  .admit-header span{font-size:13px}
+  #admit-queue{padding:8px;max-height:240px;overflow-y:auto}
+  .admit-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:5px;margin-bottom:6px;border:1px solid var(--border);transition:background .15s}
+  .admit-row:hover{background:var(--bg2)}
+  .admit-avatar{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+  .admit-name{flex:1;font-size:13px;font-weight:600}
+  .admit-sub{font-size:10px;color:var(--text-muted);margin-top:2px}
+  .admit-yes{padding:6px 14px;background:var(--green-dark);border:1px solid var(--green);color:var(--green);border-radius:3px;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;transition:all .15s}
+  .admit-yes:hover{background:var(--green);color:var(--bg)}
+  .admit-no{padding:6px 14px;background:#ff475722;border:1px solid #ff4757;color:#ff4757;border-radius:3px;cursor:pointer;font-size:11px;font-weight:700;font-family:inherit;transition:all .15s;margin-left:4px}
+  .admit-no:hover{background:#ff4757;color:#fff}
+  .admit-empty{padding:16px;text-align:center;font-size:11px;color:var(--text-muted)}
+
+  /* Waiting room — shown to USER while waiting to be admitted */
+  #waiting-room{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:820;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+  #waiting-room.show{display:flex}
+  .wr-icon{font-size:52px;animation:wrbob 2s ease-in-out infinite}
+  @keyframes wrbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  .wr-title{font-size:18px;font-weight:700;color:var(--yellow);letter-spacing:2px}
+  .wr-sub{font-size:12px;color:var(--text-dim);letter-spacing:1px}
+  .wr-dots{font-size:20px;color:var(--text-muted);letter-spacing:4px;animation:wrdots 1.5s infinite}
+  @keyframes wrdots{0%,100%{opacity:.3}50%{opacity:1}}
+  .wr-cancel{margin-top:10px;padding:10px 28px;background:none;border:1px solid var(--text-muted);color:var(--text-dim);border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;transition:all .2s}
+  .wr-cancel:hover{border-color:var(--red);color:var(--red)}
+
+  /* ── Dark mode: standard muted app theme (no neon/terminal styling) ── */
+  body.dark-mode{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    --bg:#313338; --bg2:#2b2d31; --bg3:#1e1f22; --panel:#2b2d31;
+    --border:#3f4147; --green:#5865f2; --green-dim:#4752c4; --green-dark:#39406e;
+    --cyan:#3b82f6; --red:#ed4245; --yellow:#faa61a;
+    --text:#dcddde; --text-dim:#96989d; --text-muted:#72767d; --scrollbar:#232428;
+  }
+  body.dark-mode::before{content:none}
+  body.dark-mode *{text-shadow:none!important;box-shadow:none!important;animation:none!important}
+  body.dark-mode #topbar::after{content:none}
+  body.dark-mode .msg-text::before{content:''}
+  body.dark-mode .sys-msg::before{content:''}
+  body.dark-mode .prompt-prefix{display:none}
+
+  /* ══════════════════════════════════════════════════════
+     RESPONSIVE — tablet & phone
+     ══════════════════════════════════════════════════════ */
+
+  /* Tablet (≤900px): narrower sidebar, scale down call video tiles */
+  @media (max-width:900px){
+    #sidebar{width:190px}
+    #remote-video,#local-video{width:340px;max-width:44vw;height:auto;aspect-ratio:16/9}
+    .login-box{width:90vw;max-width:440px}
+  }
+
+  /* Phone/small tablet (≤700px): sidebar becomes a slide-in drawer */
+  @media (max-width:700px){
+    body{font-size:14px}
+    #topbar{padding:0 10px;height:48px}
+    #sidebar-toggle-btn{display:flex}
+    .logo{font-size:13px;letter-spacing:2px}
+    #theme-toggle{font-size:0;padding:6px;width:32px;height:32px;justify-content:center;border-radius:4px}
+    #theme-toggle::before{content:'🖥️';font-size:15px}
+    body.dark-mode #theme-toggle::before{content:'🌙'}
+    #debug-btn{font-size:0;padding:6px;width:32px;height:32px}
+    #debug-btn::before{content:'🔧';font-size:15px}
+    #quit-btn{font-size:0!important;padding:6px!important;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+    #quit-btn::before{content:'🚪';font-size:15px}
+    #connection-status span{display:none}
+    #topbar > div[style*="display:flex"]{gap:8px!important}
+
+    #main{position:relative}
+    #sidebar{position:fixed;top:48px;left:0;bottom:0;width:78vw;max-width:280px;z-index:400;transform:translateX(-100%);transition:transform .25s ease;box-shadow:4px 0 24px rgba(0,0,0,.5)}
+    #sidebar.open{transform:translateX(0)}
+    #sidebar-backdrop.open{display:block;position:fixed;inset:48px 0 0 0;background:rgba(0,0,0,.55);z-index:390}
+
+    #chat-area{width:100%}
+    #messages{padding:10px}
+    .msg-file,.msg-image{max-width:78vw}
+    #typing-area{padding:2px 12px}
+
+    #input-bar{padding:8px 10px;gap:6px}
+    #send-btn{width:48px;font-size:10px}
+    .icon-btn{width:30px;height:30px;font-size:14px}
+
+    /* login */
+    .login-box{width:92vw;padding:22px}
+
+    /* video call — stack tiles, keep controls reachable via fixed bottom bar */
+    #call-overlay{justify-content:flex-start;padding:14px 0 100px;gap:12px}
+    #videos{gap:8px}
+    #remote-video,#local-video{width:92vw;max-width:92vw;height:auto;aspect-ratio:4/3;max-height:36vh;object-fit:cover}
+    #group-call-videos{padding:10px 8px}
+    .call-peer-name{font-size:17px}
+    .ctrl-btn{width:46px;height:46px;font-size:17px}
+    .call-controls{position:fixed;left:0;right:0;bottom:0;margin:0;gap:10px;flex-wrap:nowrap;justify-content:center;padding:12px 10px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(8,10,14,.9);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-top:1px solid var(--border);z-index:810}
+
+    /* floating panels shouldn't overflow the viewport */
+    #debug-panel,#pinned-panel,#emoji-picker,.mention-notification,#incoming-call,#incoming-group-call{
+      max-width:90vw;left:5vw;right:5vw;width:auto
+    }
+    #incoming-call,#incoming-group-call{min-width:0}
+    #admit-panel{width:90vw;min-width:0}
+  }
+
+  /* Short / landscape viewports (phones rotated, small tablets): keep call controls reachable */
+  @media (max-height:520px){
+    #call-overlay{justify-content:flex-start;padding:10px 0 90px;gap:8px}
+    .call-header{display:none}
+    .call-peer-name{font-size:15px}
+    .call-status-text{font-size:11px}
+    #remote-video,#local-video{height:auto;max-height:34vh;width:auto;max-width:60vw;aspect-ratio:16/9}
+    #audio-avatar{width:80px;height:80px;font-size:34px}
+    .ctrl-btn{width:44px;height:44px;font-size:16px}
+    .call-controls{position:fixed;left:0;right:0;bottom:0;margin:0;gap:10px;justify-content:center;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(8,10,14,.9);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-top:1px solid var(--border);z-index:810}
+  }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">LAN//CHAT</div>
+    <div class="login-sub">OFFICE NETWORK CONSOLE v2.0</div>
+    <div class="field-label">Your username</div>
+    <input class="login-input" id="inp-user" type="text" placeholder="e.g. Nrs" maxlength="20" spellcheck="false">
+    <div class="login-hint">Letters, numbers, _ - . only</div>
+    <button id="connect-btn" onclick="startConnect()">[ CONNECT ]</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- Topbar -->
+<div id="topbar">
+  <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Toggle user list">☰</button>
+  <div class="logo">LAN<span>//</span>CHAT</div>
+  <button id="theme-toggle" onclick="toggleTheme()" title="Switch theme">🖥️ Terminal</button>
+  <div style="display:flex;align-items:center;gap:16px">
+    <button id="debug-btn" onclick="toggleDebug()">🔧 DEBUG</button>
+    <button id="quit-btn" onclick="quitChat()" title="Logout" style="background:none;border:1px solid var(--red);color:var(--red);padding:6px 14px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:700;transition:all .2s">🚪 QUIT</button>
+    <div id="connection-status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">DISCONNECTED</span>
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
+  <div id="sidebar">
+    <div class="sidebar-header">ONLINE — <span id="online-count">0</span></div>
+    <input type="text" id="user-search" placeholder="Search users..." onkeyup="filterUsers()">
+    <div id="user-list"></div>
+  </div>
+  <div id="chat-area">
+    <div id="messages">
+      <div class="sys-msg" style="color:var(--text-muted)">// Waiting for connection...</div>
+    </div>
+    <div id="typing-area"></div>
+    <div id="input-bar">
+      <span class="prompt-prefix" id="my-prompt">$&gt;</span>
+      <div style="flex:1;position:relative">
+        <input id="msg-input" type="text" placeholder="type a message..." autocomplete="off" disabled>
+        <div id="mention-autocomplete"></div>
+      </div>
+      <button class="icon-btn" onclick="toggleEmojiPicker()" title="Emoji picker">😊</button>
+      <button class="icon-btn" onclick="document.getElementById('file-input').click()" title="Send file/image">📎</button>
+      <button id="send-btn" onclick="sendMessage()" disabled>SEND</button>
+      <input type="file" id="file-input" accept=".pdf,image/*" onchange="handleFile(event)">
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()"><img id="lightbox-img" src="" alt=""></div>
+
+<!-- Incoming call popup -->
+<div id="incoming-call">
+  <div class="inc-title">// INCOMING CALL</div>
+  <div class="inc-name" id="inc-name">—</div>
+  <div class="inc-type" id="inc-type">📹 Video call</div>
+  <div class="inc-btns">
+    <button class="inc-accept" onclick="acceptCall()">✅ ACCEPT</button>
+    <button class="inc-reject" onclick="rejectCall()">❌ DECLINE</button>
+  </div>
+</div>
+
+<!-- Group call invitation popup -->
+<div id="incoming-group-call">
+  <div class="inc-title">// GROUP CALL INVITATION</div>
+  <div class="inc-name" id="inc-group-name">—</div>
+  <div class="inc-type" id="inc-group-type">📹 Group video call</div>
+  <div class="inc-btns">
+    <button class="inc-accept" onclick="acceptGroupCallInvite()">✅ JOIN</button>
+    <button class="inc-reject" onclick="rejectGroupCallInvite()">❌ DECLINE</button>
+  </div>
+</div>
+
+<!-- Video call overlay -->
+<div id="call-overlay">
+  <div class="call-header">// SECURE LAN CALL</div>
+  <div class="call-peer-name" id="call-peer-name">—</div>
+  <div class="call-status-text" id="call-status">Connecting...</div>
+
+  <!-- Single call videos -->
+  <div id="single-call-videos" style="display:none">
+    <div id="videos">
+      <div class="video-wrap" ondblclick="toggleTileFullscreen(this)" title="Double-click to view fullscreen">
+        <video id="remote-video" autoplay playsinline></video>
+        <label id="remote-label">remote</label>
+      </div>
+      <div class="video-wrap" style="border-color:var(--green)44" ondblclick="toggleTileFullscreen(this)" title="Double-click to view fullscreen">
+        <video id="local-video" autoplay playsinline muted></video>
+        <label>you</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Group call videos -->
+  <div id="group-call-videos" style="display:none;width:100%;max-width:900px;padding:20px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:20px">
+      <div class="video-wrap" style="border-color:var(--green)44" ondblclick="toggleTileFullscreen(this)" title="Double-click to view fullscreen">
+        <video id="local-video-group" autoplay playsinline muted style="width:100%;height:200px;object-fit:cover;border-radius:6px"></video>
+        <label style="position:absolute;bottom:6px;left:10px">You</label>
+      </div>
+      <div id="group-remote-videos"></div>
+    </div>
+  </div>
+
+  <!-- audio-only avatar -->
+  <div id="audio-avatar">🎙️</div>
+
+  <div class="call-controls">
+    <button class="ctrl-btn mute" id="btn-mute" onclick="toggleMute()" title="Mute mic">🎙️</button>
+    <button class="ctrl-btn end" onclick="endCall()" title="End call">📵</button>
+    <button class="ctrl-btn cam" id="btn-cam" onclick="toggleCam()" title="Toggle camera">📷</button>
+    <button class="ctrl-btn share" id="topbar-screen-btn" onclick="startScreenShare()" title="Share screen">🖥️</button>
+  </div>
+</div>
+
+<!-- Debug Panel -->
+<div id="debug-panel">
+  <span class="label">🔧 DEBUG INFO</span>
+  <span id="debug-close" onclick="toggleDebug()">✕</span>
+  <div style="clear:both;margin-top:8px">
+    <div><span class="label">Server:</span> <span id="debug-server">—</span></div>
+    <div><span class="label">Connected:</span> <span id="debug-connected">No</span></div>
+    <div><span class="label">Users Online:</span> <span id="debug-users">0</span></div>
+    <div><span class="label">My ID:</span> <span id="debug-id" style="word-break:break-all;font-size:9px">—</span></div>
+    <div><span class="label">WS State:</span> <span id="debug-ws">CLOSED</span></div>
+    <div><span class="label">Last Msg:</span> <span id="debug-last">—</span></div>
+  </div>
+</div>
+
+<!-- Emoji Picker -->
+<div id="emoji-picker"></div>
+
+<!-- Pinned Messages -->
+<div id="pinned-panel">
+  <div class="pinned-header">📌 PINNED MESSAGES</div>
+  <div id="pinned-list"></div>
+</div>
+
+<!-- ── WAITING ROOM: Admit Panel (shown to GROUP CALL HOST) ── -->
+<div id="admit-panel">
+  <div class="admit-header">
+    <span>🚪 WAITING ROOM</span>
+    <span id="admit-count" style="background:var(--yellow);color:#000;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700">0</span>
+  </div>
+  <div id="admit-queue">
+    <div class="admit-empty">No one waiting</div>
+  </div>
+</div>
+
+<!-- ── WAITING ROOM: Waiting Screen (shown to USER knocking) ── -->
+<div id="waiting-room">
+  <div class="wr-icon">🚪</div>
+  <div class="wr-title">WAITING TO JOIN</div>
+  <div class="wr-sub">The host will let you in shortly</div>
+  <div class="wr-dots">• • •</div>
+  <button class="wr-cancel" onclick="cancelWaiting()">✕ Cancel</button>
+</div>
+
+<!-- Notification Sound -->
+<audio id="notification-sound" preload="auto">
+  <source src="data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==" type="audio/wav">
+</audio>
+
+<!-- Mention Notification -->
+<div id="mention-notification" class="mention-notification">
+  <span class="mention-close" onclick="closeMentionNotif()">✕</span>
+  <div class="mention-header">🔔 YOU WERE MENTIONED</div>
+  <div class="mention-from" style="font-size:11px;color:var(--text-muted);margin-bottom:6px">by <span id="mention-from">someone</span></div>
+  <div class="mention-text" id="mention-body">Someone mentioned you</div>
+  <div class="mention-goto" onclick="openMentionedMessage()">View message →</div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  CHAT STATE
+// ════════════════════════════════════════
+let ws = null, myId = null, myUsername = null, myColor = null;
+let typingTimer = null, isTyping = false;
+const typingUsers = new Set();
+const onlineUsers = new Map();
+const selectedGroupCallUsers = new Set(); // userIds picked to invite to the next group call
+
+// ════════════════════════════════════════
+//  WEBRTC STATE
+// ════════════════════════════════════════
+let pc = null;             // RTCPeerConnection
+let localStream = null;    // our camera/mic
+let callPeerId = null;     // who we're calling / being called by
+let callPeerName = null;
+let pendingCallType = null;
+let micMuted = false;
+let camOff = false;
+let isScreenSharing = false;
+let screenStream = null;
+let screenShareTargets = new Set(); // peer ids currently receiving the screen-share track
+let screenShareSenders = new Map(); // peerId -> { sender, added } — added=true means we had to create a new video track (audio-only call)
+
+// Group call state
+// Waiting room state
+let currentGroupCallId = null;   // set when host starts a group call
+let isHostOfGroupCall = false;
+let waitingQueue = new Map();    // userId -> { username, color } — only on host's client
+let isWaitingToJoin = false;     // true when user is in waiting room
+let pendingGroupCallId = null;
+let pendingGroupCallType = null;
+let pendingGroupCallInitiator = null;
+
+// WebRTC config — LAN only, so no STUN needed, but adding Google STUN helps on some setups
+const RTC_CONFIG = {
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+};
+
+// ════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════
+const fmtSize = b => b < 1024 ? b+'B' : b < 1048576 ? (b/1024).toFixed(1)+'KB' : (b/1048576).toFixed(2)+'MB';
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ════════════════════════════════════════
+//  LOGIN
+// ════════════════════════════════════════
+function startConnect() {
+  const host = window.location.hostname;
+  const user = document.getElementById('inp-user').value.trim().replace(/[^a-zA-Z0-9_\-\.]/g,'');
+  const err = document.getElementById('login-error');
+  if (!user) { err.textContent='⚠ Enter a username'; err.style.display='block'; document.getElementById('inp-user').classList.add('error'); return; }
+  err.style.display='none';
+  document.getElementById('connect-btn').textContent='[ CONNECTING... ]';
+  document.getElementById('connect-btn').disabled=true;
+  myUsername = user;
+  connectWS(host, user);
+}
+
+function connectWS(host, username) {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${protocol}//${host}:${window.location.port||8765}`;
+  try { ws = new WebSocket(url); } catch(e) { showLoginError('Could not connect: '+e.message); return; }
+  ws.onopen = () => ws.send(JSON.stringify({ type:'JOIN', username }));
+  ws.onmessage = evt => { let m; try { m=JSON.parse(evt.data); } catch { return; } handleMsg(m); };
+  ws.onerror = () => { showLoginError('Connection failed. Check server is running.'); ws=null; };
+  ws.onclose = () => { if (myId) { setStatus(false); appendSys('// Connection lost. Refresh to reconnect.','sys-leave'); document.getElementById('msg-input').disabled=true; document.getElementById('send-btn').disabled=true; } };
+}
+
+function showLoginError(msg) {
+  document.getElementById('login-error').textContent='⚠ '+msg;
+  document.getElementById('login-error').style.display='block';
+  document.getElementById('connect-btn').textContent='[ CONNECT ]';
+  document.getElementById('connect-btn').disabled=false;
+  ws=null;
+}
+
+// ════════════════════════════════════════
+//  MESSAGE HANDLER
+// ════════════════════════════════════════
+function handleMsg(msg) {
+  updateDebugInfo();
+  switch(msg.type) {
+    case 'WELCOME':
+      myId=msg.id; myColor=msg.color; myUsername=msg.username;
+      msg.onlineUsers.forEach(u=>onlineUsers.set(u.id,u));
+      renderUserList(); setStatus(true);
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('msg-input').disabled=false;
+      document.getElementById('send-btn').disabled=false;
+      document.getElementById('msg-input').focus();
+      clearMessages();
+      appendSys(`// Connected as ${msg.username} — ${msg.onlineUsers.length} user(s) online`,'sys-join');
+      document.getElementById('my-prompt').textContent=msg.username+' $>';
+      break;
+    case 'USER_JOINED':
+      onlineUsers.set(msg.id,{id:msg.id,username:msg.username,color:msg.color});
+      renderUserList();
+      appendSys(`// ${msg.username} joined the network`,'sys-join');
+      break;
+    case 'USER_LEFT':
+      onlineUsers.delete(msg.id);
+      renderUserList();
+      appendSys(`// ${msg.username} left`,'sys-leave');
+      if (callPeerId===msg.id) { appendSys('// Call ended — peer disconnected',''); closeCallUI(); }
+      break;
+    case 'MESSAGE': appendMessage(msg); break;
+    case 'FILE': appendFile(msg); break;
+    case 'TYPING':
+      if (msg.username!==myUsername) { typingUsers.add(msg.username); renderTyping(); }
+      break;
+    case 'STOP_TYPING': typingUsers.delete(msg.username); renderTyping(); break;
+    case 'ERROR': appendSys('⚠ '+msg.text,''); break;
+
+    // ── WebRTC signaling ──
+    case 'CALL_OFFER':   handleCallOffer(msg); break;
+    case 'CALL_ANSWER':  handleCallAnswer(msg); break;
+    case 'ICE_CANDIDATE': handleIceCandidate(msg); break;
+    case 'CALL_REJECT':  handleCallReject(msg); break;
+    case 'CALL_END':     handleCallEnd(msg); break;
+
+    // ── Reactions & Pins ──
+    case 'MESSAGE_REACTION_UPDATE': 
+      renderMessageReactions(msg.messageId, msg.reactions); 
+      break;
+    case 'PIN_UPDATE': 
+      if (msg.pinned) pinnedMessages.set(msg.messageId, { username: msg.username, text: msg.text });
+      else pinnedMessages.delete(msg.messageId);
+      updatePinnedPanel();
+      break;
+
+    // ── Mentions ──
+    case 'MENTION_NOTIFY':
+      handleMentionNotify(msg);
+      break;
+
+    // ── Group Calls ──
+    case 'GROUP_CALL_KNOCK':       handleIncomingKnock(msg); break;
+    case 'GROUP_CALL_WAITING':     handleWaitingConfirm(msg); break;
+    case 'GROUP_CALL_ADMITTED':    handleAdmitted(msg); break;
+    case 'GROUP_CALL_DENIED':      handleDenied(msg); break;
+    case 'GROUP_CALL_INIT':
+      handleGroupCallOffer(msg);
+      break;
+    case 'GROUP_CALL_MEMBER_JOINED':
+      handleGroupCallMemberJoined(msg);
+      break;
+    case 'GROUP_CALL_OFFER':
+      handleGroupCallOfferReceived(msg);
+      break;
+    case 'GROUP_CALL_ANSWER':
+      handleGroupCallAnswer(msg);
+      break;
+    case 'GROUP_ICE_CANDIDATE':
+      handleGroupICECandidate(msg);
+      break;
+    case 'GROUP_CALL_MEMBER_LEFT':
+      handleGroupCallMemberLeft(msg);
+      break;
+  }
+}
+
+// ════════════════════════════════════════
+//  CHAT UI
+// ════════════════════════════════════════
+function setStatus(c) {
+  document.getElementById('status-dot').classList.toggle('connected',c);
+  document.getElementById('status-text').textContent=c?'CONNECTED':'DISCONNECTED';
+}
+
+function toggleGroupCallSelection(userId, checked) {
+  if (checked) selectedGroupCallUsers.add(userId);
+  else selectedGroupCallUsers.delete(userId);
+  const countEl = document.getElementById('group-select-count');
+  const startBtns = document.querySelectorAll('.group-start-btn');
+  if (countEl) countEl.textContent = selectedGroupCallUsers.size;
+  startBtns.forEach(b => b.disabled = selectedGroupCallUsers.size === 0);
+}
+
+function renderUserList() {
+  const list=document.getElementById('user-list');
+  list.innerHTML='';
+  document.getElementById('online-count').textContent=onlineUsers.size;
+  // Drop selections for users who went offline
+  for (const id of selectedGroupCallUsers) if (!onlineUsers.has(id)) selectedGroupCallUsers.delete(id);
+
+  for(const[,u]of onlineUsers){
+    const el=document.createElement('div');
+    el.className='user-item';
+    const isMe=u.id===myId;
+    el.innerHTML=`
+      <div class="user-avatar" style="background:${u.color}22;border:1px solid ${u.color}55;color:${u.color}">${u.username[0].toUpperCase()}</div>
+      <span class="user-name${isMe?' you':''}" style="color:${u.color}">${u.username}</span>
+      ${!isMe?`
+        <input type="checkbox" class="group-select-box" title="Select for group call" onchange="toggleGroupCallSelection('${u.id}', this.checked)" ${selectedGroupCallUsers.has(u.id)?'checked':''}>
+        <button class="call-btn" onclick="startCall('${u.id}','${esc(u.username)}','video')" title="Video call">📹</button>
+        <button class="call-btn" onclick="startCall('${u.id}','${esc(u.username)}','audio')" title="Audio call">🎙️</button>
+      `:''}
+      <div class="user-online-dot"></div>
+    `;
+    list.appendChild(el);
+  }
+
+  // Add group call button if 2+ users online
+  if (onlineUsers.size > 1 && myId) {
+    const groupSection = document.createElement('div');
+    groupSection.innerHTML = `
+      <div style="padding:12px 14px;border-top:1px solid var(--border);margin-top:8px">
+        <div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">GROUP CALLS &mdash; <span id="group-select-count">${selectedGroupCallUsers.size}</span> selected</div>
+        <button class="group-start-btn" onclick="startGroupCall('video')" ${selectedGroupCallUsers.size===0?'disabled':''} style="width:100%;padding:8px;margin-bottom:6px;background:var(--green-dark);border:1px solid var(--green);color:var(--green);border-radius:3px;cursor:pointer;font-size:11px;font-weight:700;transition:all .2s">📹 Group Video</button>
+        <button class="group-start-btn" onclick="startGroupCall('audio')" ${selectedGroupCallUsers.size===0?'disabled':''} style="width:100%;padding:8px;background:var(--cyan);border:1px solid var(--cyan);color:#000;border-radius:3px;cursor:pointer;font-size:11px;font-weight:700;transition:all .2s">🎙️ Group Audio</button>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:6px">Check the box next to a name to include them</div>
+      </div>
+    `;
+    list.appendChild(groupSection);
+  }
+}
+
+function renderTyping() {
+  const el=document.getElementById('typing-area');
+  if(!typingUsers.size){el.textContent='';return;}
+  el.textContent=`// ${[...typingUsers].join(', ')} ${typingUsers.size===1?'is':'are'} typing...`;
+}
+
+function clearMessages(){document.getElementById('messages').innerHTML='';}
+
+function appendSys(text,cls){
+  const el=document.createElement('div');
+  el.className=`sys-msg ${cls}`;
+  el.textContent=text;
+  pushMsg(el);
+}
+
+function appendMessage(msg){
+  const row=document.createElement('div');
+  row.className='msg-row';
+  row.setAttribute('data-msg-id', msg.id);
+  const isMe=msg.from===myId;
+  const highlighted = highlightMentions(esc(msg.text), msg.username);
+  row.innerHTML=`<div class="msg-meta"><span class="msg-user" style="color:${msg.color}">${msg.username}${isMe?' (you)':''}</span><span class="msg-time">${fmtTime(msg.timestamp)}</span>
+  ${!isMe?`<button onclick="togglePinMessage('${msg.id}')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:12px;padding:0 4px">📌</button>`:''}
+  </div><div class="msg-text">${highlighted}</div>`;
+  if (msg.reactions) renderMessageReactions(msg.id, msg.reactions);
+  pushMsg(row);
+  if (msg.from !== myId) playNotification();
+}
+
+function appendFile(msg){
+  const isMe=msg.from===myId;
+  const isImg=msg.mimeType.startsWith('image/');
+  const row=document.createElement('div'); row.className='msg-row';
+  let html=`<div class="msg-meta"><span class="msg-user" style="color:${msg.color}">${msg.username}${isMe?' (you)':''}</span><span class="msg-time">${fmtTime(msg.timestamp)}</span></div>`;
+  if(isImg){
+    html+=`<img class="msg-image" src="${msg.data}" alt="${esc(msg.fileName)}" onclick="openLightbox(this.src)">
+    <div style="font-size:10px;color:var(--text-muted);margin-top:3px">${esc(msg.fileName)} · ${fmtSize(msg.size)}</div>`;
+  } else {
+    html+=`<a class="msg-file" href="${msg.data}" download="${esc(msg.fileName)}" style="border-left-color:${msg.color}"><span class="file-icon">📄</span><div class="file-info"><span class="file-name">${esc(msg.fileName)}</span><span class="file-size">${fmtSize(msg.size)} · click to download</span></div></a>`;
+  }
+  row.innerHTML=html; pushMsg(row);
+}
+
+function pushMsg(el){
+  const c=document.getElementById('messages');
+  c.appendChild(el); c.scrollTop=c.scrollHeight;
+}
+
+function sendMessage(){
+  const inp=document.getElementById('msg-input');
+  const text=inp.value.trim(); if(!text||!ws) return;
+  ws.send(JSON.stringify({type:'MESSAGE',text}));
+  inp.value=''; stopTyping();
+}
+
+document.getElementById('msg-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){sendMessage();return;}
+  if(!isTyping&&ws){isTyping=true;ws.send(JSON.stringify({type:'TYPING'}));}
+  clearTimeout(typingTimer); typingTimer=setTimeout(stopTyping,1800);
+});
+
+function stopTyping(){
+  if(isTyping&&ws){isTyping=false;ws.send(JSON.stringify({type:'STOP_TYPING'}));}
+  clearTimeout(typingTimer);
+}
+
+function handleFile(e){
+  const file=e.target.files[0]; if(!file||!ws) return;
+  e.target.value='';
+  if(file.size>10*1024*1024){alert('Max 10MB');return;}
+  const ok=['application/pdf','image/jpeg','image/png','image/gif','image/webp'];
+  if(!ok.includes(file.type)){alert('PDF/images only');return;}
+  const r=new FileReader();
+  r.onload=()=>ws.send(JSON.stringify({type:'FILE',fileName:file.name,mimeType:file.type,size:file.size,data:r.result}));
+  r.readAsDataURL(file);
+}
+
+function openLightbox(src){document.getElementById('lightbox-img').src=src;document.getElementById('lightbox').classList.add('show');}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('show');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox();});
+
+// ════════════════════════════════════════
+//  WEBRTC — CALLING
+// ════════════════════════════════════════
+
+async function startCall(targetId, targetUsername, callType) {
+  if (callPeerId) { alert('Already in a call.'); return; }
+  
+  // Check if mediaDevices is available
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('❌ Camera/Microphone access not available.\n\nNote: WebRTC requires HTTPS.\nMake sure you\'re using https:// (not http://)');
+    return;
+  }
+  
+  callPeerId = targetId;
+  callPeerName = targetUsername;
+
+  showCallUI(targetUsername, callType, 'Calling...');
+
+  // Get local media
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(
+      callType === 'video' ? { video: true, audio: true } : { audio: true, video: false }
+    );
+  } catch(e) {
+    alert('❌ ' + e.name + ': ' + e.message + '\n\nMake sure:\n1. You\'re using HTTPS\n2. Browser permissions are granted\n3. Camera/mic are not in use elsewhere');
+    closeCallUI(); return;
+  }
+
+  setLocalVideo(localStream, callType);
+  createPeerConnection(targetId);
+
+  // Add tracks
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  // Create offer
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  ws.send(JSON.stringify({ type:'CALL_OFFER', targetId, offer, callType }));
+  appendSys(`// 📹 Calling ${targetUsername}...`, '');
+}
+
+function handleCallOffer(msg) {
+  if (callPeerId === msg.from && pc) {
+    // Renegotiation from our current call partner (e.g. they just started
+    // screen sharing on a call that had no video track yet) — just answer
+    // it on the existing connection, don't treat it as a new incoming call.
+    pc.setRemoteDescription(new RTCSessionDescription(msg.offer)).then(async () => {
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      ws.send(JSON.stringify({ type:'CALL_ANSWER', targetId: callPeerId, answer }));
+    });
+    return;
+  }
+  if (callPeerId) {
+    // Already in a different call — auto-reject
+    ws.send(JSON.stringify({ type:'CALL_REJECT', targetId: msg.from }));
+    return;
+  }
+  callPeerId = msg.from;
+  callPeerName = msg.fromUsername;
+  pendingCallType = msg.callType || 'video';
+
+  // Create the peer connection and apply the remote offer right away — the
+  // user may take several seconds to click Accept, and the caller's ICE
+  // candidates start trickling in immediately. Without a pc to receive them,
+  // those candidates are silently dropped (there's nothing to buffer them),
+  // which was causing calls to connect one-way or fail outright.
+  createPeerConnection(msg.from);
+  pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+
+  // Show incoming call popup
+  document.getElementById('inc-name').textContent = msg.fromUsername;
+  document.getElementById('inc-type').textContent = pendingCallType === 'video' ? '📹 Video call' : '🎙️ Audio call';
+  document.getElementById('incoming-call').classList.add('show');
+}
+
+async function acceptCall() {
+  document.getElementById('incoming-call').classList.remove('show');
+  showCallUI(callPeerName, pendingCallType, 'Connecting...');
+
+  // Check if mediaDevices is available
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('❌ Camera/Microphone access not available.\n\nNote: WebRTC requires HTTPS.\nMake sure you\'re using https:// (not http://)');
+    ws.send(JSON.stringify({ type:'CALL_REJECT', targetId: callPeerId }));
+    closeCallUI(); return;
+  }
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(
+      pendingCallType === 'video' ? { video:true, audio:true } : { audio:true, video:false }
+    );
+  } catch(e) {
+    alert('❌ ' + e.name + ': ' + e.message + '\n\nMake sure:\n1. You\'re using HTTPS\n2. Browser permissions are granted\n3. Camera/mic are not in use elsewhere');
+    ws.send(JSON.stringify({ type:'CALL_REJECT', targetId: callPeerId }));
+    closeCallUI(); return;
+  }
+
+  setLocalVideo(localStream, pendingCallType);
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+
+  ws.send(JSON.stringify({ type:'CALL_ANSWER', targetId: callPeerId, answer }));
+  appendSys(`// 📹 Call with ${callPeerName} started`, 'sys-join');
+}
+
+function rejectCall() {
+  document.getElementById('incoming-call').classList.remove('show');
+  ws.send(JSON.stringify({ type:'CALL_REJECT', targetId: callPeerId }));
+  if (pc) { pc.close(); pc = null; }
+  callPeerId = null; callPeerName = null; pendingCallType = null;
+}
+
+async function handleCallAnswer(msg) {
+  if (!pc) return;
+  await pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+  document.getElementById('call-status').textContent = 'Connected ✅';
+  appendSys(`// 📹 Call with ${callPeerName} connected`, 'sys-join');
+}
+
+async function handleIceCandidate(msg) {
+  if (!pc || !msg.candidate) return;
+  try { await pc.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch(e) {}
+}
+
+function handleCallReject(msg) {
+  appendSys(`// 📵 ${msg.fromUsername} declined the call`, '');
+  closeCallUI();
+}
+
+function handleCallEnd(msg) {
+  appendSys(`// 📵 ${msg.fromUsername} ended the call`, '');
+  closeCallUI();
+}
+
+function endCall() {
+  if (isGroupCall) {
+    // End group call
+    ws.send(JSON.stringify({ type: 'GROUP_CALL_END' }));
+    groupCallMembers.forEach((member, userId) => {
+      if (member.pc) member.pc.close();
+    });
+    groupCallMembers.clear();
+    document.getElementById('group-remote-videos').innerHTML = '';
+    isGroupCall = false;
+  } else if (callPeerId) {
+    // End one-on-one call
+    ws.send(JSON.stringify({ type:'CALL_END', targetId: callPeerId }));
+  }
+  appendSys('// 📵 Call ended', '');
+  closeCallUI();
+}
+
+// ── PeerConnection setup ──
+function createPeerConnection(targetId) {
+  pc = new RTCPeerConnection(RTC_CONFIG);
+
+  pc.onicecandidate = e => {
+    if (e.candidate) ws.send(JSON.stringify({ type:'ICE_CANDIDATE', targetId, candidate: e.candidate }));
+  };
+
+  pc.ontrack = e => {
+    // A video track can arrive mid-call (e.g. the peer started screen sharing
+    // on what began as an audio-only call) — make sure the video area is visible.
+    if (e.track.kind === 'video') revealVideoUI();
+    const remoteVideo = document.getElementById('remote-video');
+    if (e.streams && e.streams[0]) {
+      remoteVideo.srcObject = e.streams[0];
+      document.getElementById('call-status').textContent = 'Connected ✅';
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    const s = pc.connectionState;
+    document.getElementById('call-status').textContent =
+      s === 'connected' ? 'Connected ✅' :
+      s === 'connecting' ? 'Connecting...' :
+      s === 'disconnected' || s === 'failed' ? 'Connection lost' : s;
+    if (s === 'failed') { appendSys('// Call connection failed',''); closeCallUI(); }
+  };
+}
+
+// ── Call UI helpers ──
+function showCallUI(peerName, callType, status) {
+  document.getElementById('call-peer-name').textContent = peerName;
+  document.getElementById('call-status').textContent = status;
+  document.getElementById('remote-label').textContent = peerName;
+
+  // Default to the 1:1 video layout — group-call start/join paths flip these
+  // right after calling showCallUI, so this only affects 1:1 calls, and
+  // makes sure the video boxes actually appear regardless of what the
+  // previous call (if any) last left these containers set to.
+  document.getElementById('single-call-videos').style.display = 'flex';
+  document.getElementById('group-call-videos').style.display = 'none';
+
+  const isVideo = callType === 'video';
+  document.getElementById('videos').style.display = isVideo ? 'flex' : 'none';
+  const aa = document.getElementById('audio-avatar');
+  aa.style.display = isVideo ? 'none' : 'flex';
+
+  document.getElementById('btn-cam').style.display = isVideo ? 'flex' : 'none';
+  document.getElementById('call-overlay').classList.add('show');
+}
+
+function setLocalVideo(stream, callType) {
+  if (callType === 'video') {
+    document.getElementById('local-video').srcObject = stream;
+  }
+}
+
+// Double-click a video tile to view just that person's feed fullscreen; double-click again to exit.
+function toggleTileFullscreen(wrapEl) {
+  if (document.fullscreenElement === wrapEl) {
+    document.exitFullscreen();
+  } else {
+    wrapEl.requestFullscreen().catch(() => {});
+  }
+}
+
+function closeCallUI() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  document.getElementById('call-overlay').classList.remove('show');
+  document.getElementById('incoming-call').classList.remove('show');
+  document.getElementById('incoming-group-call').classList.remove('show');
+  document.getElementById('single-call-videos').style.display = 'flex';
+  document.getElementById('group-call-videos').style.display = 'none';
+
+  // Stop all tracks
+  if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream=null; }
+  if (screenStream) { screenStream.getTracks().forEach(t=>t.stop()); screenStream=null; }
+  if (pc) { pc.close(); pc=null; }
+
+  // Clear group call connections
+  groupCallMembers.forEach((member, userId) => {
+    if (member.pc) member.pc.close();
+  });
+  groupCallMembers.clear();
+  document.getElementById('group-remote-videos').innerHTML = '';
+
+  // Clear videos
+  document.getElementById('remote-video').srcObject = null;
+  document.getElementById('local-video').srcObject = null;
+  document.getElementById('local-video-group').srcObject = null;
+
+  callPeerId=null; callPeerName=null; pendingCallType=null;
+  pendingGroupCallId=null; pendingGroupCallType=null; pendingGroupCallInitiator=null;
+  micMuted=false; camOff=false;
+  isScreenSharing=false; screenShareTargets.clear(); screenShareSenders.clear();
+  isGroupCall = false;
+  // Reset waiting room state
+  isHostOfGroupCall = false;
+  isWaitingToJoin = false;
+  waitingQueue.clear();
+  currentGroupCallId = null;
+  document.getElementById('admit-panel').classList.remove('show');
+  document.getElementById('waiting-room').classList.remove('show');
+  document.getElementById('btn-mute').classList.remove('active');
+  document.getElementById('btn-cam').classList.remove('active');
+  document.getElementById('topbar-screen-btn').classList.remove('active');
+}
+
+function toggleMute() {
+  if (!localStream) return;
+  micMuted = !micMuted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
+  document.getElementById('btn-mute').classList.toggle('active', micMuted);
+  document.getElementById('btn-mute').textContent = micMuted ? '🔇' : '🎙️';
+}
+
+function toggleCam() {
+  if (!localStream) return;
+  camOff = !camOff;
+  localStream.getVideoTracks().forEach(t => t.enabled = !camOff);
+  document.getElementById('btn-cam').classList.toggle('active', camOff);
+  document.getElementById('btn-cam').textContent = camOff ? '🚫' : '📷';
+}
+
+// ════════════════════════════════════════
+//  SCREEN SHARE
+// ════════════════════════════════════════
+
+// Everyone currently connected in the active call (the 1:1 peer, or all group members)
+function getConnectedCallPeers() {
+  if (isGroupCall) {
+    return Array.from(groupCallMembers.entries()).map(([id, m]) => ({ id, username: m.username }));
+  }
+  if (callPeerId && callPeerId !== 'group') {
+    return [{ id: callPeerId, username: callPeerName }];
+  }
+  return [];
+}
+
+function getPeerConnectionFor(peerId) {
+  if (isGroupCall) {
+    const member = groupCallMembers.get(peerId);
+    return member ? member.pc : null;
+  }
+  return pc;
+}
+
+// Reveal the video tiles even on a call that started as audio-only, since a
+// screen-share track is about to flow (or just arrived) over it.
+function revealVideoUI() {
+  document.getElementById('videos').style.display = 'flex';
+  document.getElementById('audio-avatar').style.display = 'none';
+}
+
+async function startScreenShare() {
+  if (isScreenSharing) { stopScreenShare(); return; }
+
+  const targetIds = getConnectedCallPeers().map(p => p.id);
+  if (targetIds.length === 0) { alert('Start or join a call first to share your screen.'); return; }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    alert('❌ Screen sharing is not available in this browser.');
+    return;
+  }
+
+  try {
+    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+  } catch (e) {
+    return; // user cancelled the browser's share picker
+  }
+
+  const screenTrack = screenStream.getVideoTracks()[0];
+  screenShareTargets = new Set(targetIds);
+  screenShareTargets.forEach(id => startSendingScreenTrack(id, screenTrack));
+
+  // Show your own shared screen too, and reveal the video area if this call
+  // started as audio-only.
+  revealVideoUI();
+  document.getElementById(isGroupCall ? 'local-video-group' : 'local-video').srcObject = screenStream;
+
+  // Browser's own "Stop sharing" control ends the track directly
+  screenTrack.onended = () => stopScreenShare();
+
+  isScreenSharing = true;
+  document.getElementById('topbar-screen-btn').classList.add('active');
+  appendSys('// 🖥️ Screen sharing started', 'sys-join');
+}
+
+// Renegotiate a peer connection after adding/removing a track on it —
+// needed when the original call had no video m-line (audio-only calls).
+async function renegotiatePeer(peerId, targetPc) {
+  try {
+    const offer = await targetPc.createOffer();
+    await targetPc.setLocalDescription(offer);
+    if (isGroupCall) {
+      ws.send(JSON.stringify({ type: 'GROUP_CALL_OFFER', targetId: peerId, offer }));
+    } else {
+      ws.send(JSON.stringify({ type: 'CALL_OFFER', targetId: peerId, offer, callType: pendingCallType || 'video' }));
+    }
+  } catch (e) {}
+}
+
+function startSendingScreenTrack(peerId, track) {
+  const targetPc = getPeerConnectionFor(peerId);
+  if (!targetPc) return;
+  const existingSender = targetPc.getSenders().find(s => s.track && s.track.kind === 'video');
+  if (existingSender) {
+    existingSender.replaceTrack(track);
+    screenShareSenders.set(peerId, { sender: existingSender, added: false });
+  } else {
+    // No video m-line yet (this was an audio-only call) — add one and renegotiate.
+    const newSender = targetPc.addTrack(track, screenStream);
+    screenShareSenders.set(peerId, { sender: newSender, added: true });
+    renegotiatePeer(peerId, targetPc);
+  }
+}
+
+function stopSendingScreenTrack(peerId) {
+  const targetPc = getPeerConnectionFor(peerId);
+  const info = screenShareSenders.get(peerId);
+  if (!targetPc || !info) return;
+  if (info.added) {
+    targetPc.removeTrack(info.sender);
+    renegotiatePeer(peerId, targetPc);
+  } else {
+    const cameraTrack = localStream ? localStream.getVideoTracks()[0] : null;
+    info.sender.replaceTrack(cameraTrack || null);
+  }
+}
+
+function stopScreenShare() {
+  if (!isScreenSharing) return;
+  screenShareTargets.forEach(id => stopSendingScreenTrack(id));
+  screenShareTargets.clear();
+  screenShareSenders.clear();
+
+  if (screenStream) { screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
+
+  // Restore local preview: camera feed if we have one, otherwise back to the
+  // audio-only view.
+  const localVideoEl = document.getElementById(isGroupCall ? 'local-video-group' : 'local-video');
+  const cameraTrack = localStream ? localStream.getVideoTracks()[0] : null;
+  if (cameraTrack) {
+    localVideoEl.srcObject = localStream;
+  } else {
+    localVideoEl.srcObject = null;
+    if (!isGroupCall) {
+      document.getElementById('videos').style.display = 'none';
+      document.getElementById('audio-avatar').style.display = 'flex';
+    }
+  }
+
+  isScreenSharing = false;
+  document.getElementById('topbar-screen-btn').classList.remove('active');
+  appendSys('// 🖥️ Screen sharing stopped', 'sys-leave');
+}
+
+// ════════════════════════════════════════
+//  QUIT/LOGOUT
+// ════════════════════════════════════════
+function quitChat() {
+  if (confirm('Are you sure you want to quit?')) {
+    if (callPeerId) endCall();
+    if (ws) ws.close();
+    myId = null;
+    myUsername = null;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('msg-input').value = '';
+    document.getElementById('inp-user').focus();
+  }
+}
+
+// ════════════════════════════════════════
+//  GROUP CALL SYSTEM
+// ════════════════════════════════════════
+let isGroupCall = false;
+let groupCallMembers = new Map(); // userId -> { username, color, stream, pc }
+
+async function startGroupCall(callType) {
+  if (callPeerId) { alert('Already in a call. End current call first.'); return; }
+
+  if (selectedGroupCallUsers.size === 0) {
+    alert('Select at least one person from the user list to invite.');
+    return;
+  }
+
+  // Check if mediaDevices is available
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('❌ Camera/Microphone access not available.\n\nNote: WebRTC requires HTTPS.');
+    return;
+  }
+
+  const targetIds = Array.from(selectedGroupCallUsers);
+
+  isGroupCall = true;
+  callPeerId = 'group';
+  callPeerName = 'Group Call';
+  showCallUI('GROUP CALL', callType, 'Starting...');
+  document.getElementById('single-call-videos').style.display = 'none';
+  document.getElementById('group-call-videos').style.display = 'block';
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(
+      callType === 'video' ? { video: true, audio: true } : { audio: true, video: false }
+    );
+  } catch(e) {
+    alert('❌ ' + e.name + ': ' + e.message);
+    closeCallUI(); 
+    return;
+  }
+
+  setLocalVideoGroup(localStream, callType);
+
+  // Invite only the selected users. Server assigns the groupCallId and
+  // returns it via a GROUP_CALL_INIT message sent to each invitee.
+  ws.send(JSON.stringify({
+    type: 'GROUP_CALL_INIT',
+    callType,
+    targetIds,
+    initiatorId: myId,
+    initiatorUsername: myUsername
+  }));
+  isHostOfGroupCall = true;
+  selectedGroupCallUsers.clear();
+  renderUserList();
+
+  appendSys(`// 📹 Group ${callType} call initiated — you are the host`, '');
+}
+
+function setLocalVideoGroup(stream, callType) {
+  if (callType === 'video') {
+    document.getElementById('local-video-group').srcObject = stream;
+  }
+}
+
+function handleGroupCallOffer(msg) {
+  if (callPeerId && callPeerId !== 'group') {
+    // Already in a 1-on-1 call, reject group call
+    ws.send(JSON.stringify({ type: 'GROUP_CALL_REJECT', groupCallId: msg.groupCallId, from: myId }));
+    return;
+  }
+
+  // Store pending group call info
+  pendingGroupCallId = msg.groupCallId;
+  pendingGroupCallType = msg.callType;
+  pendingGroupCallInitiator = msg.fromUsername;
+
+  // Also capture the groupCallId for host-side panel
+  currentGroupCallId = msg.groupCallId;
+  if (msg.from === myId) {
+    // This is our own broadcast back — we are the host, store our groupCallId
+    isHostOfGroupCall = true;
+    currentGroupCallId = msg.groupCallId;
+    return; // Don't show invite to yourself
+  }
+
+  // Show group call invitation popup
+  document.getElementById('inc-group-name').textContent = msg.fromUsername;
+  document.getElementById('inc-group-type').textContent = msg.callType === 'video' ? '📹 Group video call' : '🎙️ Group audio call';
+  document.getElementById('incoming-group-call').classList.add('show');
+}
+
+async function acceptGroupCallInvite() {
+  document.getElementById('incoming-group-call').classList.remove('show');
+  if (!pendingGroupCallId) return;
+
+  // Instead of joining directly, send a KNOCK — wait for host to admit
+  isWaitingToJoin = true;
+  document.getElementById('waiting-room').classList.add('show');
+  ws.send(JSON.stringify({ type: 'GROUP_CALL_KNOCK', groupCallId: pendingGroupCallId }));
+  appendSys(`// 🚪 Requesting to join ${pendingGroupCallInitiator}'s group call...`, '');
+}
+
+function cancelWaiting() {
+  isWaitingToJoin = false;
+  document.getElementById('waiting-room').classList.remove('show');
+  pendingGroupCallId = null;
+  pendingGroupCallType = null;
+  pendingGroupCallInitiator = null;
+  appendSys('// Cancelled waiting room request', '');
+}
+
+// HOST receives a knock
+function handleIncomingKnock(msg) {
+  if (!isHostOfGroupCall) return;
+  waitingQueue.set(msg.from, { username: msg.fromUsername, color: msg.fromColor, groupCallId: msg.groupCallId });
+  renderAdmitPanel();
+}
+
+// USER is confirmed as waiting
+function handleWaitingConfirm(msg) {
+  // Already showing waiting room — nothing extra needed
+}
+
+// HOST admits user → user actually joins
+async function handleAdmitted(msg) {
+  isWaitingToJoin = false;
+  document.getElementById('waiting-room').classList.remove('show');
+  appendSys(`// ✅ ${msg.hostUsername} admitted you to the group call!`, 'sys-join');
+
+  isGroupCall = true;
+  callPeerId = 'group';
+  callPeerName = 'Group Call';
+  showCallUI('GROUP CALL', msg.callType, 'Joining...');
+  document.getElementById('single-call-videos').style.display = 'none';
+  document.getElementById('group-call-videos').style.display = 'block';
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(
+      msg.callType === 'video' ? { video:true, audio:true } : { audio:true, video:false }
+    );
+  } catch(e) {
+    alert('❌ ' + e.name + ': ' + e.message);
+    closeCallUI(); return;
+  }
+
+  setLocalVideoGroup(localStream, msg.callType);
+  ws.send(JSON.stringify({ type: 'GROUP_CALL_JOIN', groupCallId: msg.groupCallId }));
+
+  pendingGroupCallId = null;
+  pendingGroupCallType = null;
+  pendingGroupCallInitiator = null;
+}
+
+// HOST denied user
+function handleDenied(msg) {
+  isWaitingToJoin = false;
+  document.getElementById('waiting-room').classList.remove('show');
+  appendSys(`// ❌ ${msg.hostUsername} did not admit you to the group call`, 'sys-leave');
+  pendingGroupCallId = null;
+  pendingGroupCallType = null;
+  pendingGroupCallInitiator = null;
+}
+
+// Render the admit/deny panel for the HOST
+function renderAdmitPanel() {
+  const panel = document.getElementById('admit-panel');
+  const queue = document.getElementById('admit-queue');
+  const countEl = document.getElementById('admit-count');
+
+  countEl.textContent = waitingQueue.size;
+
+  if (waitingQueue.size === 0) {
+    queue.innerHTML = '<div class="admit-empty">No one waiting</div>';
+    panel.classList.remove('show');
+    return;
+  }
+
+  panel.classList.add('show');
+  queue.innerHTML = '';
+  for (const [userId, info] of waitingQueue) {
+    const row = document.createElement('div');
+    row.className = 'admit-row';
+    row.id = `admit-${userId}`;
+    row.innerHTML = `
+      <div class="admit-avatar" style="background:${info.color}22;border:1px solid ${info.color}55;color:${info.color}">${info.username[0].toUpperCase()}</div>
+      <div style="flex:1">
+        <div class="admit-name" style="color:${info.color}">${info.username}</div>
+        <div class="admit-sub">Wants to join the group call</div>
+      </div>
+      <button class="admit-yes" onclick="admitUser('${userId}','${info.groupCallId}')">✅ ADMIT</button>
+      <button class="admit-no"  onclick="denyUser('${userId}','${info.groupCallId}')">❌ DENY</button>
+    `;
+    queue.appendChild(row);
+  }
+}
+
+function admitUser(userId, groupCallId) {
+  waitingQueue.delete(userId);
+  ws.send(JSON.stringify({ type: 'GROUP_CALL_ADMIT', groupCallId, targetId: userId }));
+  renderAdmitPanel();
+  appendSys(`// ✅ Admitted user to the group call`, 'sys-join');
+}
+
+function denyUser(userId, groupCallId) {
+  waitingQueue.delete(userId);
+  ws.send(JSON.stringify({ type: 'GROUP_CALL_DENY', groupCallId, targetId: userId }));
+  renderAdmitPanel();
+  appendSys(`// ❌ Denied a user from the group call`, '');
+}
+
+function rejectGroupCallInvite() {
+  document.getElementById('incoming-group-call').classList.remove('show');
+  if (pendingGroupCallId) {
+    ws.send(JSON.stringify({ type: 'GROUP_CALL_REJECT', groupCallId: pendingGroupCallId }));
+  }
+  pendingGroupCallId = null;
+  pendingGroupCallType = null;
+  pendingGroupCallInitiator = null;
+}
+
+async function startGroupCallResponse(callType, groupCallId) {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia(
+      callType === 'video' ? { video: true, audio: true } : { audio: true, video: false }
+    );
+  } catch(e) {
+    alert('❌ ' + e.name + ': ' + e.message);
+    ws.send(JSON.stringify({ type: 'GROUP_CALL_REJECT', groupCallId }));
+    closeCallUI();
+    return;
+  }
+
+  setLocalVideoGroup(localStream, callType);
+  ws.send(JSON.stringify({ type: 'GROUP_CALL_JOIN', groupCallId }));
+  appendSys(`// 📹 Joined group call`, 'sys-join');
+}
+
+function handleGroupCallMemberJoined(msg) {
+  if (!isGroupCall) return; // Not in a group call — ignore broadcast meant for participants
+
+  const userId = msg.from;
+  const username = msg.fromUsername;
+
+  if (userId === myId) return; // Don't add ourselves again
+
+  groupCallMembers.set(userId, {
+    username,
+    color: msg.color,
+    videoWrapper: createGroupVideoElement(username, userId)
+  });
+
+  // Create peer connection for new member
+  createGroupPeerConnection(userId, msg.callType);
+  appendSys(`// ${username} joined the group call`, 'sys-join');
+}
+
+// Shared ICE/track/state wiring for a group-call peer connection (used by both
+// the side that sends the offer and the side that answers it)
+function wireGroupPeerConnection(pc, targetId) {
+  pc.onicecandidate = e => {
+    if (e.candidate) {
+      ws.send(JSON.stringify({
+        type: 'GROUP_ICE_CANDIDATE',
+        targetId,
+        candidate: e.candidate
+      }));
+    }
+  };
+
+  pc.ontrack = e => {
+    const videoEl = document.querySelector(`#video-${targetId} video`);
+    if (videoEl && e.streams && e.streams[0]) {
+      videoEl.srcObject = e.streams[0];
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+      document.getElementById(`video-${targetId}`)?.remove();
+      groupCallMembers.delete(targetId);
+    }
+  };
+}
+
+// A peer sent us a GROUP_CALL_OFFER (they already know about us via
+// GROUP_CALL_MEMBER_JOINED) — answer it so the connection can actually complete.
+async function handleGroupCallOfferReceived(msg) {
+  if (!isGroupCall) return;
+  const targetId = msg.from;
+
+  if (!groupCallMembers.has(targetId)) {
+    groupCallMembers.set(targetId, {
+      username: msg.fromUsername,
+      color: msg.fromColor,
+      videoWrapper: createGroupVideoElement(msg.fromUsername, targetId)
+    });
+  }
+
+  const member = groupCallMembers.get(targetId);
+  let pc = member.pc;
+  if (!pc) {
+    pc = new RTCPeerConnection(RTC_CONFIG);
+    wireGroupPeerConnection(pc, targetId);
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    member.pc = pc;
+  }
+
+  await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  ws.send(JSON.stringify({ type: 'GROUP_CALL_ANSWER', targetId, answer }));
+}
+
+function createGroupVideoElement(username, userId) {
+  const container = document.getElementById('group-remote-videos');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'video-wrap';
+  wrapper.id = `video-${userId}`;
+  wrapper.title = 'Double-click to view fullscreen';
+  wrapper.innerHTML = `
+    <video autoplay playsinline style="width:100%;height:200px;object-fit:cover;border-radius:6px"></video>
+    <label style="position:absolute;bottom:6px;left:10px">${username}</label>
+  `;
+  wrapper.ondblclick = () => toggleTileFullscreen(wrapper);
+  container.appendChild(wrapper);
+  return wrapper;
+}
+
+function createGroupPeerConnection(targetId, callType) {
+  let pc = new RTCPeerConnection(RTC_CONFIG);
+  wireGroupPeerConnection(pc, targetId);
+
+  // Add local stream tracks
+  localStream.getTracks().forEach(track => {
+    pc.addTrack(track, localStream);
+  });
+
+  // Create and send offer
+  pc.createOffer().then(offer => {
+    pc.setLocalDescription(offer);
+    ws.send(JSON.stringify({ 
+      type: 'GROUP_CALL_OFFER', 
+      targetId, 
+      offer 
+    }));
+  });
+
+  if (groupCallMembers.has(targetId)) {
+    groupCallMembers.get(targetId).pc = pc;
+  }
+}
+
+function handleGroupCallAnswer(msg) {
+  const member = groupCallMembers.get(msg.from);
+  if (member && member.pc) {
+    member.pc.setRemoteDescription(new RTCSessionDescription(msg.answer));
+  }
+}
+
+function handleGroupICECandidate(msg) {
+  const member = groupCallMembers.get(msg.from);
+  if (member && member.pc && msg.candidate) {
+    member.pc.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(() => {});
+  }
+}
+
+function handleGroupCallMemberLeft(msg) {
+  groupCallMembers.delete(msg.from);
+  const videoEl = document.getElementById(`video-${msg.from}`);
+  if (videoEl) videoEl.remove();
+  appendSys(`// ${msg.fromUsername} left the group call`, 'sys-leave');
+}
+
+// ════════════════════════════════════════
+//  NEW FEATURES (Emoji, Reactions, Pins, etc)
+// ════════════════════════════════════════
+
+// Theme toggle — Terminal (default) vs Dark mode. No light mode.
+document.body.classList.remove('light-theme');
+localStorage.removeItem('theme');
+
+function toggleSidebar(force) {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const open = typeof force === 'boolean' ? force : !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', open);
+  backdrop.classList.toggle('open', open);
+}
+
+function toggleTheme() {
+  const goingDark = !document.body.classList.contains('dark-mode');
+  document.body.classList.toggle('dark-mode', goingDark);
+  document.getElementById('theme-toggle').textContent = goingDark ? '🌙 Dark' : '🖥️ Terminal';
+  localStorage.setItem('uiTheme', goingDark ? 'dark' : 'terminal');
+}
+
+const savedUiTheme = localStorage.getItem('uiTheme');
+if (savedUiTheme === 'dark') {
+  document.body.classList.add('dark-mode');
+  document.getElementById('theme-toggle').textContent = '🌙 Dark';
+}
+
+// Emoji picker
+const EMOJIS = ['😀', '😂', '❤️', '👍', '🔥', '✨', '😍', '🎉', '💯', '👏', '😎', '🚀', '💬', '👀', '⭐', '🎌'];
+function toggleEmojiPicker() {
+  document.getElementById('emoji-picker').classList.toggle('show');
+}
+
+function initEmojiPicker() {
+  const picker = document.getElementById('emoji-picker');
+  picker.innerHTML = '';
+  EMOJIS.forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.className = 'emoji-btn';
+    btn.textContent = emoji;
+    btn.onclick = () => {
+      const input = document.getElementById('msg-input');
+      input.value += emoji;
+      input.focus();
+      picker.classList.remove('show');
+    };
+    picker.appendChild(btn);
+  });
+}
+initEmojiPicker();
+
+// User search/filter
+function filterUsers() {
+  const query = document.getElementById('user-search').value.toLowerCase();
+  document.querySelectorAll('.user-item').forEach(item => {
+    const name = item.querySelector('.user-name').textContent.toLowerCase();
+    if (!query || name.includes(query)) {
+      item.classList.remove('hidden');
+      if (query && name.includes(query)) item.classList.add('match');
+      else item.classList.remove('match');
+    } else {
+      item.classList.add('hidden');
+    }
+  });
+}
+
+// Message reactions
+const messageReactions = new Map(); // messageId -> { emoji -> { username, userId } }
+function addReaction(messageId, emoji) {
+  if (!ws || !myId) return;
+  if (!messageReactions.has(messageId)) messageReactions.set(messageId, {});
+  const key = `${emoji}|${myId}`;
+  ws.send(JSON.stringify({ type: 'MESSAGE_REACTION', messageId, emoji, add: !messageReactions.get(messageId)[key] }));
+}
+
+function renderMessageReactions(messageId, reactions) {
+  const msgEl = document.querySelector(`[data-msg-id="${messageId}"]`);
+  if (!msgEl) return;
+  let reactionsEl = msgEl.querySelector('.msg-reactions');
+  if (!reactionsEl) {
+    reactionsEl = document.createElement('div');
+    reactionsEl.className = 'msg-reactions';
+    msgEl.appendChild(reactionsEl);
+  }
+  reactionsEl.innerHTML = '';
+  const reactionMap = {};
+  Object.values(reactions || {}).forEach(r => {
+    if (!reactionMap[r.emoji]) reactionMap[r.emoji] = [];
+    reactionMap[r.emoji].push(r.username);
+  });
+  Object.entries(reactionMap).forEach(([emoji, users]) => {
+    const btn = document.createElement('div');
+    btn.className = 'reaction';
+    btn.onclick = () => addReaction(messageId, emoji);
+    btn.innerHTML = `<span class="reaction-emoji">${emoji}</span><span class="reaction-count">${users.length}</span>`;
+    reactionsEl.appendChild(btn);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-reaction';
+  addBtn.textContent = '➕';
+  addBtn.onclick = () => toggleEmojiPicker();
+  reactionsEl.appendChild(addBtn);
+}
+
+// Pinned messages
+const pinnedMessages = new Map(); // messageId -> msgObj
+function togglePinMessage(messageId) {
+  if (!ws || !myId) return;
+  const isPinned = pinnedMessages.has(messageId);
+  ws.send(JSON.stringify({ type: isPinned ? 'UNPIN_MESSAGE' : 'PIN_MESSAGE', messageId }));
+}
+
+function updatePinnedPanel() {
+  const panel = document.getElementById('pinned-list');
+  panel.innerHTML = '';
+  if (pinnedMessages.size === 0) {
+    panel.innerHTML = '<div style="color:var(--text-muted);font-size:10px">No pinned messages</div>';
+  } else {
+    pinnedMessages.forEach((msg, id) => {
+      const el = document.createElement('div');
+      el.className = 'pinned-msg';
+      el.innerHTML = `<strong>${msg.username}:</strong> ${msg.text.slice(0, 50)}...`;
+      el.onclick = () => {
+        const msgEl = document.querySelector(`[data-msg-id="${id}"]`);
+        if (msgEl) msgEl.scrollIntoView({ behavior: 'smooth' });
+      };
+      panel.appendChild(el);
+    });
+  }
+}
+
+// Better timestamps 
+function fmtTime(ts) {
+  const date = new Date(ts);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+}
+
+// Notification sound
+function playNotification() {
+  const audio = document.getElementById('notification-sound');
+  if (audio) {
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }
+}
+
+// ════════════════════════════════════════
+//  @MENTION SYSTEM
+// ════════════════════════════════════════
+let lastMentionMessage = null; // Store last mention for notification
+
+// @mention autocomplete
+let mentionStart = -1;
+let mentionQuery = '';
+
+document.getElementById('msg-input').addEventListener('input', e => {
+  const text = e.target.value;
+  const cursorPos = e.target.selectionStart;
+  
+  // Find if we're typing after @ symbol
+  const beforeCursor = text.slice(0, cursorPos);
+  const lastAt = beforeCursor.lastIndexOf('@');
+  
+  if (lastAt !== -1 && cursorPos > lastAt) {
+    const charAfterAt = text[lastAt - 1];
+    // Only trigger if @ is at start or after space
+    if (lastAt === 0 || charAfterAt === ' ') {
+      mentionStart = lastAt;
+      mentionQuery = beforeCursor.slice(lastAt + 1).toLowerCase();
+      showMentionAutocomplete(mentionQuery);
+      return;
+    }
+  }
+  hideMentionAutocomplete();
+});
+
+function showMentionAutocomplete(query) {
+  const autocomplete = document.getElementById('mention-autocomplete');
+  const matches = [];
+  
+  // Find users matching query
+  onlineUsers.forEach(user => {
+    if (user.username.toLowerCase().includes(query) && user.id !== myId) {
+      matches.push(user);
+    }
+  });
+  
+  if (matches.length === 0) {
+    autocomplete.classList.remove('show');
+    return;
+  }
+  
+  autocomplete.innerHTML = matches.map(user => 
+    `<div class="mention-item" onclick="insertMention('${user.username}')" style="color:${user.color}"><strong>@${user.username}</strong></div>`
+  ).join('');
+  autocomplete.classList.add('show');
+}
+
+function hideMentionAutocomplete() {
+  document.getElementById('mention-autocomplete').classList.remove('show');
+  mentionStart = -1;
+  mentionQuery = '';
+}
+
+function insertMention(username) {
+  const input = document.getElementById('msg-input');
+  const text = input.value;
+  const beforeMention = text.slice(0, mentionStart);
+  const afterMention = text.slice(mentionStart + mentionQuery.length + 1);
+  input.value = beforeMention + '@' + username + ' ' + afterMention;
+  input.focus();
+  hideMentionAutocomplete();
+}
+
+// Handle mention notifications
+function handleMentionNotify(msg) {
+  lastMentionMessage = msg.messageId;
+  const notif = document.getElementById('mention-notification');
+  document.getElementById('mention-from').textContent = msg.fromUsername;
+  document.getElementById('mention-body').textContent = msg.text;
+  notif.classList.add('show');
+  playNotification();
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    notif.classList.remove('show');
+  }, 5000);
+}
+
+function closeMentionNotif() {
+  document.getElementById('mention-notification').classList.remove('show');
+}
+
+function openMentionedMessage() {
+  if (lastMentionMessage) {
+    const msgEl = document.querySelector(`[data-msg-id="${lastMentionMessage}"]`);
+    if (msgEl) {
+      msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      msgEl.style.background = 'rgba(255,211,42,.2)';
+      setTimeout(() => {
+        msgEl.style.background = '';
+      }, 3000);
+    }
+  }
+  closeMentionNotif();
+}
+
+// @mention detection and highlighting
+function highlightMentions(text, fromUsername) {
+  let highlighted = text.replace(/@[\w\-\.]+/g, match => {
+    return `<span class="mentioned">${match}</span>`;
+  });
+  return highlighted;
+}
+
+// ════════════════════════════════════════
+//  DEBUG PANEL
+// ════════════════════════════════════════
+function toggleDebug() {
+  document.getElementById('debug-panel').classList.toggle('show');
+}
+
+function updateDebugInfo() {
+  const protocol = window.location.protocol === 'https:' ? 'HTTPS' : 'HTTP';
+  const wsState = !ws ? 'CLOSED' : ws.readyState === WebSocket.CONNECTING ? 'CONNECTING' : ws.readyState === WebSocket.OPEN ? 'OPEN' : ws.readyState === WebSocket.CLOSING ? 'CLOSING' : 'CLOSED';
+  
+  document.getElementById('debug-server').textContent = `${protocol}://${window.location.hostname}:${window.location.port||8765}`;
+  document.getElementById('debug-connected').textContent = myId ? '✅ Yes' : '❌ No';
+  document.getElementById('debug-users').textContent = onlineUsers.size;
+  document.getElementById('debug-id').textContent = myId || '(waiting)';
+  document.getElementById('debug-ws').textContent = wsState;
+  document.getElementById('debug-last').textContent = new Date().toLocaleTimeString();
+}
+
+// Update debug info every second
+setInterval(updateDebugInfo, 1000);
+updateDebugInfo();
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+const savedUser = localStorage.getItem('lanchat_username');
+if (savedUser) document.getElementById('inp-user').value = savedUser;
+document.getElementById('inp-user').addEventListener('change', e => localStorage.setItem('lanchat_username', e.target.value));
+document.getElementById('inp-user').addEventListener('keydown', e => { if(e.key==='Enter') startConnect(); });
+document.getElementById('inp-user').focus();
+</script>
+</body>
+</html>
